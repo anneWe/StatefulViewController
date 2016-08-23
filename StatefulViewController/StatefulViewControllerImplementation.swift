@@ -49,6 +49,11 @@ extension StatefulViewController {
         set { setPlaceholderView(newValue, forState: .Loading) }
     }
     
+    public var errorNoNetworkView: UIView? {
+        get { return placeholderView(.ErrorNoNetwork) }
+        set { setPlaceholderView(newValue, forState: .ErrorNoNetwork) }
+    }
+    
     public var errorView: UIView? {
         get { return placeholderView(.Error) }
         set { setPlaceholderView(newValue, forState: .Error) }
@@ -64,7 +69,7 @@ extension StatefulViewController {
     
     public func setupInitialViewState(completion: (() -> Void)? = nil) {
         let isLoading = (lastState == .Loading)
-        let error: NSError? = (lastState == .Error) ? NSError(domain: "com.aschuch.StatefulViewController.ErrorDomain", code: -1, userInfo: nil) : nil
+        let error: NSError? = (lastState == .Error || lastState == .ErrorNoNetwork) ? NSError(domain: "com.aschuch.StatefulViewController.ErrorDomain", code: -1, userInfo: nil) : nil
         transitionViewStates(isLoading, error: error, animated: false, completion: completion)
     }
     
@@ -72,11 +77,11 @@ extension StatefulViewController {
         transitionViewStates(true, animated: animated, completion: completion)
     }
     
-    public func endLoading(animated: Bool = true, error: ErrorType? = nil, completion: (() -> Void)? = nil) {
+    public func endLoading(animated: Bool = true, error: NSError? = nil, completion: (() -> Void)? = nil) {
         transitionViewStates(false, animated: animated, error: error, completion: completion)
     }
     
-    public func transitionViewStates(loading: Bool = false, error: ErrorType? = nil, animated: Bool = true, completion: (() -> Void)? = nil) {
+    public func transitionViewStates(loading: Bool = false, error: NSError? = nil, animated: Bool = true, completion: (() -> Void)? = nil) {
         // Update view for content (i.e. hide all placeholder views)
         if hasContent() {
             if let e = error {
@@ -91,8 +96,13 @@ extension StatefulViewController {
         var newState: StatefulViewControllerState = .Empty
         if loading {
             newState = .Loading
-        } else if let _ = error {
-            newState = .Error
+        } else if let error = error {
+            
+            if error.code == NSURLErrorNotConnectedToInternet {
+                newState = .ErrorNoNetwork
+            } else {
+                newState = .Error
+            }
         }
         self.stateMachine.transitionToState(.View(newState.rawValue), animated: animated, completion: completion)
     }
